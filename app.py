@@ -3,7 +3,7 @@
 # - Loads meta model: best_model.pkl
 # - Loads level-1 models: model_*.pkl from repo root
 # - Inputs:
-#   Categorical: Spinal_Injury_Level, Paralysis_Type, injury_mechanism, VP
+#   Categorical: Spinal_Injury_Level, Paralysis_Type, Injury_Mechanism, VP
 #   Numeric: APACHEII, Bicarbote, Sodium, Potassium, MAP, Temp
 # - Outputs: final probability + Level-2 linear logit contributions
 
@@ -65,7 +65,8 @@ CLIN_SPECS = {
         },
         "default": 1,
     },
-    "injury_mechanism": {
+    # NOTE: must match CatBoost model's expected feature name exactly
+    "Injury_Mechanism": {
         "type": "cat",
         "labels": {
             1: "Fall (High)",
@@ -96,7 +97,7 @@ CLIN_ORDER = list(CLIN_SPECS.keys())
 DISPLAY_NAME = {
     "Spinal_Injury_Level": "Spinal injury level",
     "Paralysis_Type": "Paralysis type",
-    "injury_mechanism": "Injury mechanism",
+    "Injury_Mechanism": "Injury mechanism",
     "VP": "Vasopressor use",
     "APACHEII": "APACHE-II score",
     "Bicarbote": "Bicarbonate (HCO₃⁻, mmol/L)",
@@ -107,7 +108,7 @@ DISPLAY_NAME = {
 }
 
 # CatBoost categorical and numeric columns
-CAT_COLS_FOR_CATBOOST = ["Spinal_Injury_Level", "Paralysis_Type", "injury_mechanism", "VP"]
+CAT_COLS_FOR_CATBOOST = ["Spinal_Injury_Level", "Paralysis_Type", "Injury_Mechanism", "VP"]
 NUM_COLS_FOR_CATBOOST = [c for c in CLIN_ORDER if c not in CAT_COLS_FOR_CATBOOST]
 
 
@@ -234,7 +235,7 @@ def align_to_model_features(m, X_in: pd.DataFrame, cast_cat="auto") -> pd.DataFr
     X = X_in.copy()
     feat_in = _get_feat_in(m)
 
-    # Case-insensitive rename to align columns
+    # Case-insensitive rename to align columns (helps sklearn pipelines)
     if feat_in is not None:
         lower_to_train = {c.lower(): c for c in feat_in}
         ren = {}
@@ -343,10 +344,10 @@ def build_meta_input(level1_dict: dict, X_clin: pd.DataFrame, feature_names: lis
     if missing:
         raise FileNotFoundError(f"Missing level-1 model files for: {missing}")
     rec, modes = {}, {}
-    for name in feature_names:
-        p, mode = run_level1_strict(level1_dict[name], X_clin, name)
-        rec[name] = p
-        modes[name] = mode
+    for nm in feature_names:
+        p, mode = run_level1_strict(level1_dict[nm], X_clin, nm)
+        rec[nm] = p
+        modes[nm] = mode
     X_meta = pd.DataFrame([[rec[c] for c in feature_names]], columns=feature_names)
     return X_meta, modes
 
