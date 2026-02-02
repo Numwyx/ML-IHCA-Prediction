@@ -113,11 +113,11 @@ NUM_COLS_FOR_CATBOOST = [c for c in CLIN_ORDER if c not in CAT_COLS_FOR_CATBOOST
 
 
 # =============================
-# Sidebar inputs (FORCED DEFAULTS)
+# Sidebar inputs (FORCED DEFAULTS, FIXED)
 # =============================
 st.sidebar.header("Input parameters")
 
-# Screenshot defaults (exactly as your image)
+# Screenshot defaults (codes for categorical, numeric for numeric)
 SCREENSHOT_DEFAULTS = {
     "Spinal_Injury_Level": 2,   # Lower cervical spine
     "Paralysis_Type": 3,        # None
@@ -134,20 +134,39 @@ SCREENSHOT_DEFAULTS = {
 # stable widget keys
 WIDGET_KEY = {feat: f"inp_{feat}" for feat in CLIN_ORDER}
 
+def _code_to_label(feat: str, code_val):
+    spec = CLIN_SPECS[feat]
+    return spec["labels"].get(int(code_val), list(spec["labels"].values())[0])
+
 def init_defaults_if_needed():
-    # set session_state only if missing, otherwise Streamlit will keep old values
+    """
+    Important:
+    - For selectbox with key, st.session_state[key] must be an OPTION VALUE (label string),
+      not the encoded integer.
+    - For number_input with key, st.session_state[key] is numeric.
+    """
     for feat in CLIN_ORDER:
         k = WIDGET_KEY[feat]
-        if k not in st.session_state:
-            st.session_state[k] = SCREENSHOT_DEFAULTS.get(
-                feat, CLIN_SPECS[feat].get("default")
-            )
+        spec = CLIN_SPECS[feat]
+
+        if k in st.session_state:
+            continue
+
+        if spec["type"] == "cat":
+            code_default = SCREENSHOT_DEFAULTS.get(feat, spec.get("default"))
+            st.session_state[k] = _code_to_label(feat, code_default)  # store LABEL
+        else:
+            st.session_state[k] = float(SCREENSHOT_DEFAULTS.get(feat, spec.get("default")))
 
 def reset_to_screenshot_defaults():
     for feat in CLIN_ORDER:
-        st.session_state[WIDGET_KEY[feat]] = SCREENSHOT_DEFAULTS.get(
-            feat, CLIN_SPECS[feat].get("default")
-        )
+        k = WIDGET_KEY[feat]
+        spec = CLIN_SPECS[feat]
+        if spec["type"] == "cat":
+            code_default = SCREENSHOT_DEFAULTS.get(feat, spec.get("default"))
+            st.session_state[k] = _code_to_label(feat, code_default)  # store LABEL
+        else:
+            st.session_state[k] = float(SCREENSHOT_DEFAULTS.get(feat, spec.get("default")))
 
 init_defaults_if_needed()
 
@@ -163,26 +182,22 @@ for feat in CLIN_ORDER:
 
     if spec["type"] == "cat":
         labels = list(spec["labels"].values())
-        keys = list(spec["labels"].keys())
+        inv = {v: k for k, v in spec["labels"].items()}  # label -> code
 
-        cur_code = int(st.session_state[key])
-        if cur_code not in keys:
-            cur_code = int(SCREENSHOT_DEFAULTS.get(feat, spec.get("default", keys[0])))
-            st.session_state[key] = cur_code
+        # session_state[key] is label string; ensure it's valid
+        if st.session_state[key] not in labels:
+            code_default = SCREENSHOT_DEFAULTS.get(feat, spec.get("default"))
+            st.session_state[key] = _code_to_label(feat, code_default)
 
-        idx = keys.index(cur_code)
-
-        sel = st.sidebar.selectbox(label, labels, index=idx, key=key)
-        inv = {v: k for k, v in spec["labels"].items()}
-        inputs[feat] = inv[sel]
+        sel_label = st.sidebar.selectbox(label, labels, key=key)
+        inputs[feat] = inv[sel_label]  # convert label -> code
 
     else:
-        val = float(st.session_state[key])
         inputs[feat] = st.sidebar.number_input(
             label,
             min_value=float(spec["min"]),
             max_value=float(spec["max"]),
-            value=val,
+            value=float(st.session_state[key]),
             step=float(spec["step"]),
             format="%.3f" if spec["step"] < 1 else "%.0f",
             key=key,
