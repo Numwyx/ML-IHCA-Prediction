@@ -41,7 +41,6 @@ META_PATH = ROOT / "best_model.pkl"
 
 # =============================
 # Clinical feature schema
-# (DEFAULTS UPDATED to match your screenshot)
 # =============================
 CLIN_SPECS = {
     # --- categorical (coded) ---
@@ -55,7 +54,7 @@ CLIN_SPECS = {
             5: "Lumbar spine",
             6: "Unidentified",
         },
-        "default": 2,  # screenshot: Lower cervical spine
+        "default": 2,
     },
     "Paralysis_Type": {
         "type": "cat",
@@ -64,7 +63,7 @@ CLIN_SPECS = {
             2: "Paraplegia",
             3: "None",
         },
-        "default": 3,  # screenshot: None
+        "default": 3,
     },
     # NOTE: must match CatBoost model's expected feature name exactly
     "Injury_Mechanism": {
@@ -76,21 +75,21 @@ CLIN_SPECS = {
             4: "Violence",
             5: "Unknown",
         },
-        "default": 3,  # screenshot: Motor Vehicle
+        "default": 3,
     },
     "VP": {
         "type": "cat",
         "labels": {0: "No vasopressor", 1: "Vasopressor used"},
-        "default": 1,  # screenshot: Vasopressor used
+        "default": 1,
     },
 
     # --- numeric ---
     "APACHEII":   {"type": "num", "min": 0.0,  "max": 71.0,  "default": 18.0,  "step": 1.0},
     "Bicarbote":  {"type": "num", "min": 0.0,  "max": 60.0,  "default": 24.0,  "step": 0.5},
     "Sodium":     {"type": "num", "min": 110., "max": 170.,  "default": 138.,  "step": 1.0},
-    "Potassium":  {"type": "num", "min": 1.5,  "max": 8.0,   "default": 3.0,   "step": 0.1},  # screenshot: 3.000
+    "Potassium":  {"type": "num", "min": 1.5,  "max": 8.0,   "default": 3.0,   "step": 0.1},
     "MAP":        {"type": "num", "min": 30.0, "max": 200.0, "default": 75.0,  "step": 1.0},
-    "Temp":       {"type": "num", "min": 30.0, "max": 43.0,  "default": 37.0,  "step": 0.1},  # screenshot: 37.000
+    "Temp":       {"type": "num", "min": 30.0, "max": 43.0,  "default": 37.0,  "step": 0.1},
 }
 
 CLIN_ORDER = list(CLIN_SPECS.keys())
@@ -114,31 +113,79 @@ NUM_COLS_FOR_CATBOOST = [c for c in CLIN_ORDER if c not in CAT_COLS_FOR_CATBOOST
 
 
 # =============================
-# Sidebar inputs
+# Sidebar inputs (FORCED DEFAULTS)
 # =============================
 st.sidebar.header("Input parameters")
+
+# Screenshot defaults (exactly as your image)
+SCREENSHOT_DEFAULTS = {
+    "Spinal_Injury_Level": 2,   # Lower cervical spine
+    "Paralysis_Type": 3,        # None
+    "Injury_Mechanism": 3,      # Motor Vehicle
+    "VP": 1,                    # Vasopressor used
+    "APACHEII": 18.0,
+    "Bicarbote": 24.0,
+    "Sodium": 138.0,
+    "Potassium": 3.0,
+    "MAP": 75.0,
+    "Temp": 37.0,
+}
+
+# stable widget keys
+WIDGET_KEY = {feat: f"inp_{feat}" for feat in CLIN_ORDER}
+
+def init_defaults_if_needed():
+    # set session_state only if missing, otherwise Streamlit will keep old values
+    for feat in CLIN_ORDER:
+        k = WIDGET_KEY[feat]
+        if k not in st.session_state:
+            st.session_state[k] = SCREENSHOT_DEFAULTS.get(
+                feat, CLIN_SPECS[feat].get("default")
+            )
+
+def reset_to_screenshot_defaults():
+    for feat in CLIN_ORDER:
+        st.session_state[WIDGET_KEY[feat]] = SCREENSHOT_DEFAULTS.get(
+            feat, CLIN_SPECS[feat].get("default")
+        )
+
+init_defaults_if_needed()
+
+if st.sidebar.button("↩ Reset to screenshot defaults"):
+    reset_to_screenshot_defaults()
+
 inputs = {}
 
 for feat in CLIN_ORDER:
     spec = CLIN_SPECS[feat]
     label = DISPLAY_NAME.get(feat, feat)
+    key = WIDGET_KEY[feat]
 
     if spec["type"] == "cat":
         labels = list(spec["labels"].values())
         keys = list(spec["labels"].keys())
-        default_idx = keys.index(spec.get("default", keys[0]))
 
-        sel = st.sidebar.selectbox(label, labels, index=default_idx)
+        cur_code = int(st.session_state[key])
+        if cur_code not in keys:
+            cur_code = int(SCREENSHOT_DEFAULTS.get(feat, spec.get("default", keys[0])))
+            st.session_state[key] = cur_code
+
+        idx = keys.index(cur_code)
+
+        sel = st.sidebar.selectbox(label, labels, index=idx, key=key)
         inv = {v: k for k, v in spec["labels"].items()}
         inputs[feat] = inv[sel]
+
     else:
+        val = float(st.session_state[key])
         inputs[feat] = st.sidebar.number_input(
             label,
             min_value=float(spec["min"]),
             max_value=float(spec["max"]),
-            value=float(spec["default"]),
+            value=val,
             step=float(spec["step"]),
             format="%.3f" if spec["step"] < 1 else "%.0f",
+            key=key,
         )
 
 go = st.sidebar.button("🔮 Predict", type="primary")
