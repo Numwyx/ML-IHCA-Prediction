@@ -41,6 +41,7 @@ META_PATH = ROOT / "best_model.pkl"
 
 # =============================
 # Clinical feature schema
+# (DEFAULTS UPDATED to match your screenshot)
 # =============================
 CLIN_SPECS = {
     # --- categorical (coded) ---
@@ -54,7 +55,7 @@ CLIN_SPECS = {
             5: "Lumbar spine",
             6: "Unidentified",
         },
-        "default": 2,
+        "default": 2,  # screenshot: Lower cervical spine
     },
     "Paralysis_Type": {
         "type": "cat",
@@ -63,7 +64,7 @@ CLIN_SPECS = {
             2: "Paraplegia",
             3: "None",
         },
-        "default": 1,
+        "default": 3,  # screenshot: None
     },
     # NOTE: must match CatBoost model's expected feature name exactly
     "Injury_Mechanism": {
@@ -75,21 +76,21 @@ CLIN_SPECS = {
             4: "Violence",
             5: "Unknown",
         },
-        "default": 3,
+        "default": 3,  # screenshot: Motor Vehicle
     },
     "VP": {
         "type": "cat",
         "labels": {0: "No vasopressor", 1: "Vasopressor used"},
-        "default": 0,
+        "default": 1,  # screenshot: Vasopressor used
     },
 
     # --- numeric ---
     "APACHEII":   {"type": "num", "min": 0.0,  "max": 71.0,  "default": 18.0,  "step": 1.0},
     "Bicarbote":  {"type": "num", "min": 0.0,  "max": 60.0,  "default": 24.0,  "step": 0.5},
     "Sodium":     {"type": "num", "min": 110., "max": 170.,  "default": 138.,  "step": 1.0},
-    "Potassium":  {"type": "num", "min": 1.5,  "max": 8.0,   "default": 4.0,   "step": 0.1},
+    "Potassium":  {"type": "num", "min": 1.5,  "max": 8.0,   "default": 3.0,   "step": 0.1},  # screenshot: 3.000
     "MAP":        {"type": "num", "min": 30.0, "max": 200.0, "default": 75.0,  "step": 1.0},
-    "Temp":       {"type": "num", "min": 30.0, "max": 43.0,  "default": 37.0,  "step": 0.1},
+    "Temp":       {"type": "num", "min": 30.0, "max": 43.0,  "default": 37.0,  "step": 0.1},  # screenshot: 37.000
 }
 
 CLIN_ORDER = list(CLIN_SPECS.keys())
